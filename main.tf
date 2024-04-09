@@ -6,8 +6,9 @@ provider "aws" {
 # Modules
 module "vpc_blue" {
   source = "./modules/vpc"
-  region = "us-east-1"
   vpc_cidr_block = "100.64.0.0/16"
+  public_subnet_cidr_blocks = ["100.64.1.0/24", "100.64.2.0/24", "100.64.3.0/24"]
+  availability_zones = ["us-east-1a", "us-east-1b", "us-east-1c"]
 }
 
 module "security_group_blue" {
@@ -33,7 +34,8 @@ module "ha_infrastructure_blue" {
 
 module "vpc_green" {
   source = "./modules/vpc"
-  region = "us-east-1"
+  public_subnet_cidr_blocks = ["192.168.1.0/24", "192.168.2.0/24", "192.168.3.0/24"]
+  availability_zones = ["us-east-1a", "us-east-1b", "us-east-1c"]
   vpc_cidr_block = "192.168.0.0/16"
 }
 
