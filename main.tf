@@ -12,7 +12,7 @@ module "vpc_blue" {
 
 module "security_group_blue" {
   source = "./modules/security_group"
-  region = "us-east-1"
+  vpc_id = module.vpc_blue.vpc_id
 }
 
 module "ha_infrastructure_blue" {
@@ -39,7 +39,7 @@ module "vpc_green" {
 
 module "security_group_green" {
   source = "./modules/security_group"
-  region = "us-east-1"
+  vpc_id = module.vpc_green.vpc_id
 }
 
 module "ha_infrastructure_green" {
