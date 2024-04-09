@@ -18,7 +18,6 @@ module "security_group_blue" {
 
 module "ha_infrastructure_blue" {
   source = "./modules/high_availability_infrastructure"
-  region = "us-east-1"
   ami_id = "ami-080e1f13689e07408"
   key_name = "tf-key"
   user_data = <<-EOF
@@ -46,7 +45,6 @@ module "security_group_green" {
 
 module "ha_infrastructure_green" {
   source = "./modules/high_availability_infrastructure"
-  region = "us-east-1"
   ami_id = "ami-080e1f13689e07408"
   key_name = "tf-key"
   user_data = <<-EOF
