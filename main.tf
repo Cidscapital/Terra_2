@@ -13,6 +13,7 @@ resource "aws_vpc" "blue-vpc" {
   }
 }
 
+
 # Create 3 public subnets in 3 AZs for HA
 resource "aws_subnet" "blue-public-subnet1" {
   vpc_id                  = aws_vpc.blue-vpc.id
