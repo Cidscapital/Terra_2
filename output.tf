@@ -3,14 +3,14 @@ output "alb_dns_name" {
 }
 
 output "vpc_id" {
-  value = aws_vpc.blue-vpc.id
+  value = aws_vpc.green-vpc.id
 }
 
 output "public_subnet_ids" {
   value = [
-    aws_subnet.blue-public-subnet1.id,
-    aws_subnet.blue-public-subnet2.id,
-    aws_subnet.blue-public-subnet3.id
+    aws_subnet.green-public-subnet1.id,
+    aws_subnet.green-public-subnet2.id,
+    aws_subnet.green-public-subnet3.id
   ]
 }
 
