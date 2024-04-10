@@ -1,25 +1,25 @@
 variable "region" {
-  default = "eu-east-1"
+  default = "eu-west-2"
 }
 
 variable "vpc_cidr" {
-  default = "100.64.0.0/16"
+  default = "10.0.0.0/16"
 }
 
 variable "azs" {
-  default = ["eu-east-1a", "eu-east-1b", "eu-east-1c"]
+  default = ["eu-west-2a", "eu-west-2b", "eu-west-2c"]
 }
 
 variable "public_cidr_blocks" {
-  default = ["100.64.1.0/24", "100.64.2.0/24", "100.64.3.0/24"]
+  default = ["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"]
 }
 
 variable "ami" {
-  default = "ami-0a55ba1c20b74fc30"
+  default = "ami-080e1f13689e07408"
 }
 
 variable "key_name" {
-  default = "tf-key"
+  default = "cba-web-KP"
 }
 
 variable "instance_type" {

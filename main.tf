@@ -1,4 +1,4 @@
-# Build a highly available infrastructure on AWS using Terraform
+# Deploy a highly available web server on AWS using Terraform
 
 # Declare AWS as the provider
 provider "aws" {
@@ -6,53 +6,53 @@ provider "aws" {
 }
 
 # Create a custom VPC
-resource "aws_vpc" "VPC-blue" {
+resource "aws_vpc" "web-vpc" {
   cidr_block = var.vpc_cidr
   tags = {
-    Name = "VPC-blue"
+    Name = "web-vpc"
   }
 }
 
-# Create 3 public subnets in 3 AZs for highly available infrastructure
-resource "aws_subnet" "SN_blue1" {
-  vpc_id                  = aws_vpc.VPC-blue.id
+# Create 3 public subnets in 3 AZs for HA
+resource "aws_subnet" "web-public-subnet1" {
+  vpc_id                  = aws_vpc.web-vpc.id
   cidr_block              = var.public_cidr_blocks[0]
   availability_zone       = var.azs[0]
   map_public_ip_on_launch = true
 
   tags = {
-    Name = SN_blue1"
+    Name = "web-public-subnet1"
   }
 
 }
 
-resource "aws_subnet" "SN_blue2" {
-  vpc_id                  = aws_vpc.VPC-blue.id
+resource "aws_subnet" "web-public-subnet2" {
+  vpc_id                  = aws_vpc.web-vpc.id
   cidr_block              = var.public_cidr_blocks[1]
   availability_zone       = var.azs[1]
   map_public_ip_on_launch = true
 
   tags = {
-    Name = "SN_blue2"
+    Name = "web-public-subnet2"
   }
 
 }
 
-resource "aws_subnet" "SN_blue3" {
-  vpc_id                  = aws_vpc.VPC-blue.id
+resource "aws_subnet" "web-public-subnet3" {
+  vpc_id                  = aws_vpc.web-vpc.id
   cidr_block              = var.public_cidr_blocks[2]
   availability_zone       = var.azs[2]
   map_public_ip_on_launch = true
 
   tags = {
-    Name = "SN_blue3"
+    Name = "web-public-subnet3"
   }
 
 }
 
 # Create an Internet Gateway
 resource "aws_internet_gateway" "web-igw" {
-  vpc_id = aws_vpc.VPC-blue.id
+  vpc_id = aws_vpc.web-vpc.id
 
   tags = {
     Name = "web-igw"
@@ -61,7 +61,7 @@ resource "aws_internet_gateway" "web-igw" {
 
 # Create a Public Route Table
 resource "aws_route_table" "web-public-rt" {
-  vpc_id = aws_vpc.VPC-blue.id
+  vpc_id = aws_vpc.web-vpc.id
 
   route {
     cidr_block = "0.0.0.0/0"
@@ -75,17 +75,17 @@ resource "aws_route_table" "web-public-rt" {
 
 # Create route table associations for the 3 public subnets
 resource "aws_route_table_association" "a" {
-  subnet_id      = aws_subnet.SN_blue1.id
+  subnet_id      = aws_subnet.web-public-subnet1.id
   route_table_id = aws_route_table.web-public-rt.id
 }
 
 resource "aws_route_table_association" "b" {
-  subnet_id      = aws_subnet.SN_blue2.id
+  subnet_id      = aws_subnet.web-public-subnet2.id
   route_table_id = aws_route_table.web-public-rt.id
 }
 
 resource "aws_route_table_association" "c" {
-  subnet_id      = aws_subnet.SN_blue3.id
+  subnet_id      = aws_subnet.web-public-subnet3.id
   route_table_id = aws_route_table.web-public-rt.id
 }
 
@@ -93,7 +93,7 @@ resource "aws_route_table_association" "c" {
 resource "aws_security_group" "web-sg" {
   name        = "web-sg"
   description = "Allow inbound web traffic"
-  vpc_id      = aws_vpc.VPC-blue.id
+  vpc_id      = aws_vpc.web-vpc.id
 
   ingress {
     description = "Allow web traffic"
@@ -130,7 +130,7 @@ resource "aws_lb" "web-alb" {
   load_balancer_type = "application"
   ip_address_type    = "ipv4"
   security_groups    = [aws_security_group.web-sg.id]
-  subnets            = [aws_subnet.SN_blue1.id, aws_subnet.SN_blue2.id, aws_subnet.SN_blue3.id]
+  subnets            = [aws_subnet.web-public-subnet1.id, aws_subnet.web-public-subnet2.id, aws_subnet.web-public-subnet3.id]
 
   tags = {
     Name = "web-alb"
@@ -143,7 +143,7 @@ resource "aws_lb_target_group" "web-alb-tg" {
   target_type = "instance"  
   port        = 80
   protocol    = "HTTP"
-  vpc_id      = aws_vpc.VPC-blue.id
+  vpc_id      = aws_vpc.web-vpc.id
   health_check {
     protocol = "HTTP"
     path = "/index.html"
@@ -179,15 +179,7 @@ resource "aws_launch_template" "web-lt" {
       Name = "web-server"
     }
   }
-  user_data = <<-EOF
-  #!/bin/bash
-  sudo apt-get update -y
-  sudo apt-get upgrade -y
-  sudo apt-get install nginx -y
-  sudo systemctl start nginx
-  sudo systemctl enable nginx
-  sudo echo "<html><body><h2>Hello World from $(hostname -f)</h2></body></html>" > /var/www/html/index.html
-  EOF
+  user_data = filebase64("script.sh")
   lifecycle {
     create_before_destroy = true
   }
@@ -196,14 +188,14 @@ resource "aws_launch_template" "web-lt" {
 # Create an Auto Scaling Group
 resource "aws_autoscaling_group" "web-asg" {
   name              = "web-asg"
-  desired_capacity  = 3
-  max_size          = 3
-  min_size          = 2 
+  desired_capacity  = 2
+  max_size          = 2
+  min_size          = 2  
   health_check_type = "ELB"  
   launch_template {
     id      = aws_launch_template.web-lt.id 
   }
-  vpc_zone_identifier = [aws_subnet.SN_blue1.id, aws_subnet.SN_blue2.id, aws_subnet.SN_blue3.id]
+  vpc_zone_identifier = [aws_subnet.web-public-subnet1.id, aws_subnet.web-public-subnet2.id, aws_subnet.web-public-subnet3.id]
   tag {
     key                 = "Name"
     value               = "web-asg"
