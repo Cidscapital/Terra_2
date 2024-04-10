@@ -179,7 +179,15 @@ resource "aws_launch_template" "web-lt" {
       Name = "web-server"
     }
   }
-  user_data = filebase64("script.sh")
+  user_data = <<-EOF
+  #!/bin/bash
+  sudo apt-get update -y
+  sudo apt-get upgrade -y
+  sudo apt-get install nginx -y
+  sudo systemctl start nginx
+  sudo systemctl enable nginx
+  sudo echo "<html><body><h2>Hello World from $(hostname -f)</h2></body></html>" > /var/www/html/index.html
+  EOF
   lifecycle {
     create_before_destroy = true
   }
