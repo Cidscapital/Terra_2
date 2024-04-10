@@ -208,5 +208,5 @@ resource "aws_autoscaling_group" "web-asg" {
 
 resource "aws_autoscaling_attachment" "asg_attachment_web" {
   autoscaling_group_name = aws_autoscaling_group.web-asg.id
-  alb_target_group_arn    = aws_lb_target_group.web-alb-tg.arn
+  lb_target_group_arn    = aws_lb_target_group.web-alb-tg.arn
 }
