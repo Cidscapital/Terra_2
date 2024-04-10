@@ -1,60 +1,212 @@
-# Provider configuration
+# Build a highly available infrastructure on AWS using Terraform
+
+# Declare AWS as the provider
 provider "aws" {
-  region = "us-east-1"
+  region = var.region
 }
 
-# Modules
-module "vpc_blue" {
-  source = "./modules/vpc"
-  vpc_cidr_block = "100.64.0.0/16"
-  public_subnet_cidr_blocks = ["100.64.1.0/24", "100.64.2.0/24", "100.64.3.0/24"]
-  availability_zones = ["us-east-1a", "us-east-1b", "us-east-1c"]
+# Create a custom VPC
+resource "aws_vpc" "VPC-blue" {
+  cidr_block = var.vpc_cidr
+  tags = {
+    Name = "VPC-blue"
+  }
 }
 
-module "security_group_blue" {
-  source = "./modules/security_group"
-  vpc_id = module.vpc_blue.vpc_id
+# Create 3 public subnets in 3 AZs for highly available infrastructure
+resource "aws_subnet" "Subnet-SN-blue-1" {
+  vpc_id                  = aws_vpc.VPC-blue.id
+  cidr_block              = var.public_cidr_blocks[0]
+  availability_zone       = var.azs[0]
+  map_public_ip_on_launch = true
+
+  tags = {
+    Name = Subnet-SN-blue-1"
+  }
+
 }
 
-module "ha_infrastructure_blue" {
-  source = "./modules/high_availability_infrastructure"
-  ami_id = "ami-080e1f13689e07408"
-  key_name = "tf-key"
-  user_data = <<-EOF
-    #!/bin/bash
-    apt update
-    apt install -y docker.io
-    docker pull nginx
-    docker run -d --name docker-nginx -p 80:80 nginx
-    docker run -d --name nginx-container-1 -p 8080:80 nginx
-    docker run -d --name nginx-container-2 -p 8081:80 nginx
-  EOF
+resource "aws_subnet" "Subnet-SN-blue-2" {
+  vpc_id                  = aws_vpc.VPC-blue.id
+  cidr_block              = var.public_cidr_blocks[1]
+  availability_zone       = var.azs[1]
+  map_public_ip_on_launch = true
+
+  tags = {
+    Name = "Subnet-SN-blue-2"
+  }
+
 }
 
-module "vpc_green" {
-  source = "./modules/vpc"
-  public_subnet_cidr_blocks = ["192.168.1.0/24", "192.168.2.0/24", "192.168.3.0/24"]
-  availability_zones = ["us-east-1a", "us-east-1b", "us-east-1c"]
-  vpc_cidr_block = "192.168.0.0/16"
+resource "aws_subnet" "Subnet-SN-blue-3" {
+  vpc_id                  = aws_vpc.VPC-blue.id
+  cidr_block              = var.public_cidr_blocks[2]
+  availability_zone       = var.azs[2]
+  map_public_ip_on_launch = true
+
+  tags = {
+    Name = "Subnet-SN-blue-3"
+  }
+
 }
 
-module "security_group_green" {
-  source = "./modules/security_group"
-  vpc_id = module.vpc_green.vpc_id
+# Create an Internet Gateway
+resource "aws_internet_gateway" "web-igw" {
+  vpc_id = aws_vpc.VPC-blue.id
+
+  tags = {
+    Name = "web-igw"
+  }
 }
 
-module "ha_infrastructure_green" {
-  source = "./modules/high_availability_infrastructure"
-  ami_id = "ami-080e1f13689e07408"
-  key_name = "tf-key"
-  user_data = <<-EOF
-    #!/bin/bash
-    apt update
-    apt install -y docker.io
-    docker pull nginx
-    docker run -d --name docker-nginx -p 80:80 nginx
-    docker run -d --name nginx-container-1 -p 8080:80 nginx
-    docker run -d --name nginx-container-2 -p 8081:80 nginx
-  EOF
-  
+# Create a Public Route Table
+resource "aws_route_table" "web-public-rt" {
+  vpc_id = aws_vpc.VPC-blue.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.web-igw.id
+  }
+
+  tags = {
+    Name = "web-public-rt"
+  }
+}
+
+# Create route table associations for the 3 public subnets
+resource "aws_route_table_association" "a" {
+  subnet_id      = aws_subnet.Subnet-SN-blue-1.id
+  route_table_id = aws_route_table.web-public-rt.id
+}
+
+resource "aws_route_table_association" "b" {
+  subnet_id      = aws_subnet.Subnet-SN-blue-2.id
+  route_table_id = aws_route_table.web-public-rt.id
+}
+
+resource "aws_route_table_association" "c" {
+  subnet_id      = aws_subnet.Subnet-SN-blue-3.id
+  route_table_id = aws_route_table.web-public-rt.id
+}
+
+# Create Security Groups to open ports 80(HTTP) and 22(SSH)
+resource "aws_security_group" "web-sg" {
+  name        = "web-sg"
+  description = "Allow inbound web traffic"
+  vpc_id      = aws_vpc.VPC-blue.id
+
+  ingress {
+    description = "Allow web traffic"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description = "Allow SSH access"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "web-sg"
+  }
+}
+
+# Create Application Load Balancer
+resource "aws_lb" "web-alb" {
+  name               = "web-alb"
+  internal           = false
+  load_balancer_type = "application"
+  ip_address_type    = "ipv4"
+  security_groups    = [aws_security_group.web-sg.id]
+  subnets            = [aws_subnet.Subnet-SN-blue-1.id, aws_subnet.Subnet-SN-blue-2.id, aws_subnet.Subnet-SN-blue-3.id]
+
+  tags = {
+    Name = "web-alb"
+  }
+}
+
+# Create a target group for the Application Load Balancer
+resource "aws_lb_target_group" "web-alb-tg" {
+  name        = "web-alb-tg"
+  target_type = "instance"  
+  port        = 80
+  protocol    = "HTTP"
+  vpc_id      = aws_vpc.VPC-blue.id
+  health_check {
+    protocol = "HTTP"
+    path = "/index.html"
+    port = 80
+  }
+  tags = {
+    Name = "web-alb-tg"
+  }
+}
+
+# Create ALB Listener to listen on port 80 and forward traffic to the instances in the target group
+resource "aws_lb_listener" "web-alb-listener" {
+  load_balancer_arn = aws_lb.web-alb.arn
+  port              = 80
+  protocol          = "HTTP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.web-alb-tg.arn
+  }
+}
+
+# Create a Launch template for the Auto Scaling Group
+resource "aws_launch_template" "web-lt" {
+  name                 = "web-lt"
+  image_id             = var.ami
+  instance_type        = var.instance_type
+  key_name             = var.key_name
+  vpc_security_group_ids = [aws_security_group.web-sg.id]
+  tag_specifications {
+    resource_type = "instance"
+    tags = {
+      Name = "web-server"
+    }
+  }
+  user_data = filebase64("script.sh")
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# Create an Auto Scaling Group
+resource "aws_autoscaling_group" "web-asg" {
+  name              = "web-asg"
+  desired_capacity  = 3
+  max_size          = 3
+  min_size          = 2 
+  health_check_type = "ELB"  
+  launch_template {
+    id      = aws_launch_template.web-lt.id 
+  }
+  vpc_zone_identifier = [aws_subnet.Subnet-SN-blue-1.id, aws_subnet.Subnet-SN-blue-2.id, aws_subnet.Subnet-SN-blue-3.id]
+  tag {
+    key                 = "Name"
+    value               = "web-asg"
+    propagate_at_launch = true
+  }
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+resource "aws_autoscaling_attachment" "asg_attachment_web" {
+  autoscaling_group_name = aws_autoscaling_group.web-asg.id
+  alb_target_group_arn    = aws_lb_target_group.web-alb-tg.arn
 }
