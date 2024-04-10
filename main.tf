@@ -14,38 +14,38 @@ resource "aws_vpc" "VPC-blue" {
 }
 
 # Create 3 public subnets in 3 AZs for highly available infrastructure
-resource "aws_subnet" "Subnet-SN-blue-1" {
+resource "aws_subnet" "SN-blue-1" {
   vpc_id                  = aws_vpc.VPC-blue.id
   cidr_block              = var.public_cidr_blocks[0]
   availability_zone       = var.azs[0]
   map_public_ip_on_launch = true
 
   tags = {
-    Name = Subnet-SN-blue-1"
+    Name = SN-blue-1"
   }
 
 }
 
-resource "aws_subnet" "Subnet-SN-blue-2" {
+resource "aws_subnet" "SN-blue-2" {
   vpc_id                  = aws_vpc.VPC-blue.id
   cidr_block              = var.public_cidr_blocks[1]
   availability_zone       = var.azs[1]
   map_public_ip_on_launch = true
 
   tags = {
-    Name = "Subnet-SN-blue-2"
+    Name = "SN-blue-2"
   }
 
 }
 
-resource "aws_subnet" "Subnet-SN-blue-3" {
+resource "aws_subnet" "SN-blue-3" {
   vpc_id                  = aws_vpc.VPC-blue.id
   cidr_block              = var.public_cidr_blocks[2]
   availability_zone       = var.azs[2]
   map_public_ip_on_launch = true
 
   tags = {
-    Name = "Subnet-SN-blue-3"
+    Name = "SN-blue-3"
   }
 
 }
@@ -75,17 +75,17 @@ resource "aws_route_table" "web-public-rt" {
 
 # Create route table associations for the 3 public subnets
 resource "aws_route_table_association" "a" {
-  subnet_id      = aws_subnet.Subnet-SN-blue-1.id
+  subnet_id      = aws_subnet.SN-blue-1.id
   route_table_id = aws_route_table.web-public-rt.id
 }
 
 resource "aws_route_table_association" "b" {
-  subnet_id      = aws_subnet.Subnet-SN-blue-2.id
+  subnet_id      = aws_subnet.SN-blue-2.id
   route_table_id = aws_route_table.web-public-rt.id
 }
 
 resource "aws_route_table_association" "c" {
-  subnet_id      = aws_subnet.Subnet-SN-blue-3.id
+  subnet_id      = aws_subnet.SN-blue-3.id
   route_table_id = aws_route_table.web-public-rt.id
 }
 
@@ -130,7 +130,7 @@ resource "aws_lb" "web-alb" {
   load_balancer_type = "application"
   ip_address_type    = "ipv4"
   security_groups    = [aws_security_group.web-sg.id]
-  subnets            = [aws_subnet.Subnet-SN-blue-1.id, aws_subnet.Subnet-SN-blue-2.id, aws_subnet.Subnet-SN-blue-3.id]
+  subnets            = [aws_subnet.SN-blue-1.id, aws_subnet.SN-blue-2.id, aws_subnet.SN-blue-3.id]
 
   tags = {
     Name = "web-alb"
@@ -195,7 +195,7 @@ resource "aws_autoscaling_group" "web-asg" {
   launch_template {
     id      = aws_launch_template.web-lt.id 
   }
-  vpc_zone_identifier = [aws_subnet.Subnet-SN-blue-1.id, aws_subnet.Subnet-SN-blue-2.id, aws_subnet.Subnet-SN-blue-3.id]
+  vpc_zone_identifier = [aws_subnet.SN-blue-1.id, aws_subnet.SN-blue-2.id, aws_subnet.SN-blue-3.id]
   tag {
     key                 = "Name"
     value               = "web-asg"
